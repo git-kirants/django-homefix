@@ -1,0 +1,105 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Register - HomeFix{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <h2 class="text-center mb-4">Register</h2>
+    <form method="post" id="registerForm" onsubmit="return validateForm()">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" name="username" required>
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+        </div>
+        <div class="mb-3">
+            <label for="phone_number" class="form-label">Phone Number</label>
+            <input type="tel" 
+                   class="form-control" 
+                   id="phone_number" 
+                   name="phone_number" 
+                   pattern="^[789]\d{9}$"
+                   maxlength="10"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); validatePhoneNumber(this);"
+                   required>
+            <div class="invalid-feedback" id="phone-feedback">
+                Phone number must start with 7, 8, or 9 and be exactly 10 digits long.
+            </div>
+        </div>
+        <div class="mb-3">
+            <label for="user_type" class="form-label">User Type</label>
+            <select class="form-select" id="user_type" name="user_type" required>
+                <option value="">Select user type</option>
+                <option value="homeowner">Homeowner</option>
+                <option value="tenant">Tenant</option>
+                <option value="service_provider">Service Provider</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="password1" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password1" name="password1" required>
+        </div>
+        <div class="mb-3">
+            <label for="password2" class="form-label">Confirm Password</label>
+            <input type="password" class="form-control" id="password2" name="password2" required>
+            <div class="invalid-feedback" id="password-feedback">
+                Passwords do not match.
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Register</button>
+    </form>
+    <div class="text-center mt-3">
+        <p>Already have an account? <a href="{% url 'users:login' %}">Login here</a></p>
+    </div>
+</div>
+
+<script>
+function validatePhoneNumber(input) {
+    const phoneNumber = input.value;
+    const isValid = /^[789]\d{0,9}$/.test(phoneNumber);
+    
+    if (!isValid) {
+        // If the input doesn't match our pattern, remove the last character
+        input.value = phoneNumber.slice(0, -1);
+    }
+    
+    // Show validation feedback
+    const feedback = document.getElementById('phone-feedback');
+    if (phoneNumber.length === 10 && /^[789]\d{9}$/.test(phoneNumber)) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        feedback.style.display = 'none';
+    } else {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+        feedback.style.display = 'block';
+    }
+}
+
+function validateForm() {
+    const password1 = document.getElementById('password1').value;
+    const password2 = document.getElementById('password2').value;
+    const phoneNumber = document.getElementById('phone_number').value;
+    const phoneRegex = /^[789]\d{9}$/;
+    
+    // Validate passwords match
+    if (password1 !== password2) {
+        document.getElementById('password2').classList.add('is-invalid');
+        document.getElementById('password-feedback').style.display = 'block';
+        return false;
+    }
+    
+    // Validate phone number
+    if (!phoneRegex.test(phoneNumber)) {
+        document.getElementById('phone_number').classList.add('is-invalid');
+        document.getElementById('phone-feedback').style.display = 'block';
+        return false;
+    }
+    
+    return true;
+}
+</script>
+{% endblock %}

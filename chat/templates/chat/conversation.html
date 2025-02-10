@@ -1,0 +1,193 @@
+{% extends 'users/base.html' %}
+{% load static %}
+
+{% block title %}{{ service.title }} - Chat - HomeFix{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>{{ service.title }}</h2>
+                <a href="{% url 'chat:message_list' %}" class="btn btn-outline-primary">Back to Messages</a>
+            </div>
+            
+            <div class="chat-container" id="chatContainer">
+                <div class="messages" id="messages">
+                    {% if messages.has_previous %}
+                        <div class="text-center mb-3">
+                            <button class="btn btn-sm btn-outline-secondary load-more" data-page="{{ messages.previous_page_number }}">
+                                Load Previous Messages
+                            </button>
+                        </div>
+                    {% endif %}
+                    
+                    <div id="messagesList">
+                        {% include 'chat/messages_content.html' %}
+                    </div>
+                </div>
+                
+                <div class="message-input mt-4">
+                    <form id="messageForm" class="d-flex gap-2">
+                        <input type="text" id="messageInput" class="form-control" placeholder="Type your message...">
+                        <button type="submit" class="btn btn-primary">Send</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const serviceId = {{ service.id }};
+const currentUser = {{ request.user.id }};
+let isLoadingMessages = false;
+
+// Function to load more messages
+function loadMoreMessages(page) {
+    if (isLoadingMessages) return;
+    isLoadingMessages = true;
+    
+    fetch(`{% url 'chat:conversation' service.id %}?page=${page}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const messagesList = document.getElementById('messagesList');
+        // Prepend messages to the list
+        messagesList.insertAdjacentHTML('afterbegin', data.messages.map(msg => {
+            const messageClass = msg.sender === currentUser ? 'sent' : 'received';
+            return `
+                <div class="message-wrapper ${messageClass}">
+                    <div class="message">
+                        <div class="message-content">${msg.message}</div>
+                        <div class="message-time">${new Date(msg.timestamp).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}</div>
+                    </div>
+                </div>
+            `;
+        }).join(''));
+        
+        if (data.has_previous) {
+            messagesList.insertAdjacentHTML('afterbegin', `
+                <div class="text-center mb-3">
+                    <button class="btn btn-sm btn-outline-secondary load-more" data-page="${page - 1}">
+                        Load Previous Messages
+                    </button>
+                </div>
+            `);
+        }
+        isLoadingMessages = false;
+    });
+}
+
+// Handle load more button clicks
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('load-more')) {
+        const page = e.target.dataset.page;
+        e.target.parentElement.remove();
+        loadMoreMessages(page);
+    }
+});
+
+// Handle message form submission
+document.getElementById('messageForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (!message) return;
+    
+    fetch('{% url "chat:send_message" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({
+            service_id: serviceId,
+            message: message
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const messagesList = document.getElementById('messagesList');
+        messagesList.insertAdjacentHTML('beforeend', `
+            <div class="message-wrapper sent">
+                <div class="message">
+                    <div class="message-content">${data.message.message}</div>
+                    <div class="message-time">${new Date(data.message.timestamp).toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'})}</div>
+                </div>
+            </div>
+        `);
+        messageInput.value = '';
+        const chatContainer = document.getElementById('chatContainer');
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+});
+
+// Auto-scroll to bottom on page load
+window.addEventListener('load', function() {
+    const chatContainer = document.getElementById('chatContainer');
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+});
+</script>
+
+<style>
+.chat-container {
+    height: calc(100vh - 250px);
+    display: flex;
+    flex-direction: column;
+}
+
+.messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+}
+
+.message-wrapper {
+    display: flex;
+    margin-bottom: 1rem;
+}
+
+.message-wrapper.sent {
+    justify-content: flex-end;
+}
+
+.message {
+    max-width: 70%;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.message-wrapper.sent .message {
+    background: #007bff;
+    color: white;
+}
+
+.message-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.message-wrapper.sent .message-time {
+    color: rgba(255,255,255,0.8);
+}
+
+.message-input {
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}

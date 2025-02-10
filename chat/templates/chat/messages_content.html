@@ -1,0 +1,12 @@
+{% for message in messages %}
+    <div class="message-wrapper {% if message.sender == request.user %}sent{% else %}received{% endif %}">
+        <div class="message">
+            <div class="message-content">
+                {{ message.message }}
+            </div>
+            <div class="message-time">
+                {{ message.timestamp|date:"g:i A" }}
+            </div>
+        </div>
+    </div>
+{% endfor %}

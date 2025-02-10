@@ -1,0 +1,70 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Home - HomeFix{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 mb-3">Welcome to HomeFix</h1>
+        <p class="lead">Your one-stop solution for home maintenance and repairs</p>
+    </div>
+
+    {% if user.is_authenticated %}
+        {% if user.user_type == 'homeowner' or user.user_type == 'tenant' %}
+            <div class="row mb-4">
+                <div class="col-md-6 offset-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h3>Find Service Providers</h3>
+                            <p>Browse through our verified service providers and find the right professional for your needs.</p>
+                            <a href="#" class="btn btn-primary">Search Services</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% elif user.user_type == 'service_provider' %}
+            <div class="row mb-4">
+                <div class="col-md-6 offset-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h3>Manage Your Services</h3>
+                            <p>Update your profile, manage bookings, and connect with clients.</p>
+                            <a href="{% url 'users:profile' %}" class="btn btn-primary">Manage Profile</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3>Homeowners</h3>
+                        <p>Find reliable professionals for your home maintenance needs.</p>
+                        <a href="{% url 'users:register' %}" class="btn btn-outline-primary">Register as Homeowner</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3>Tenants</h3>
+                        <p>Quick access to maintenance services for your rented property.</p>
+                        <a href="{% url 'users:register' %}" class="btn btn-outline-primary">Register as Tenant</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h3>Service Providers</h3>
+                        <p>Connect with clients and grow your business.</p>
+                        <a href="{% url 'users:register' %}" class="btn btn-outline-primary">Register as Provider</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

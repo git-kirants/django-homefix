@@ -1,0 +1,385 @@
+{% extends 'users/base.html' %}
+{% block title %}{{ service.title }} - HomeFix{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Service Request Details -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="mb-0">{{ service.title }}</h2>
+                    <span class="badge bg-{{ service.get_status_color }}">{{ service.get_status_display }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Category:</strong> {{ service.category.name }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Priority:</strong>
+                            <span class="badge bg-{{ service.get_priority_color }}">
+                                {{ service.get_priority_display }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Description:</strong>
+                        <p>{{ service.description }}</p>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Location:</strong>
+                            <p>{{ service.location }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Preferred Time:</strong>
+                            <p>{{ service.preferred_time|date:"F j, Y, g:i a" }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Client:</strong> {{ service.client.get_full_name|default:service.client.username }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Created:</strong> {{ service.created_at|date:"F j, Y" }}
+                        </div>
+                    </div>
+
+                    {% if service.estimated_budget %}
+                        <div class="mb-3">
+                            <strong>Estimated Budget:</strong> ₹{{ service.estimated_budget }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Service Provider Section (if assigned) -->
+            {% if service.service_provider %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="mb-0">Assigned Service Provider</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            {% if service.service_provider.serviceproviderprofile.profile_picture %}
+                                <img src="{{ service.service_provider.serviceproviderprofile.profile_picture.url }}" 
+                                     class="rounded-circle me-3" 
+                                     style="width: 64px; height: 64px; object-fit: cover;">
+                            {% endif %}
+                            <div>
+                                <h5 class="mb-1">{{ service.service_provider.get_full_name|default:service.service_provider.username }}</h5>
+                                <p class="mb-1">{{ service.service_provider.serviceproviderprofile.company_name }}</p>
+                                <div class="text-warning">
+                                    {% with ''|center:service.service_provider.serviceproviderprofile.average_rating as range %}
+                                        {% for _ in range %}
+                                            <i class="fas fa-star"></i>
+                                        {% endfor %}
+                                    {% endwith %}
+                                    {{ service.service_provider.serviceproviderprofile.average_rating|floatformat:1 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Service Offers Section -->
+            {% if user.is_staff or user == service.client %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="mb-0">Service Offers</h4>
+                    </div>
+                    <div class="card-body">
+                        {% for offer in service.offers.all %}
+                            <div class="border-bottom mb-3 pb-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="mb-1">{{ offer.service_provider.get_full_name|default:offer.service_provider.username }}</h5>
+                                        <p class="mb-2">Price Quote: ₹{{ offer.price_quote }}</p>
+                                        <p class="mb-2">Estimated Hours: {{ offer.estimated_hours }}</p>
+                                        <p class="mb-2">{{ offer.message }}</p>
+                                    </div>
+                                    {% if user == service.client and service.status == 'approved' and offer.status == 'pending' %}
+                                        <div>
+                                            <form method="post" action="{% url 'services:accept_offer' offer.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-success btn-sm">Accept</button>
+                                            </form>
+                                            <form method="post" action="{% url 'services:reject_offer' offer.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="mb-0">No offers received yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Review Section -->
+            {% if service.status == 'completed' and user == service.client and not service.review %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="mb-0">Leave a Review</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'services:add_review' service.id %}">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label class="form-label">Rating</label>
+                                <div class="rating">
+                                    {% for i in '12345'|make_list %}
+                                        <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" required>
+                                        <label for="star{{ i }}"><i class="fas fa-star"></i></label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="comment" class="form-label">Comment</label>
+                                <textarea class="form-control" id="comment" name="comment" rows="3" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Submit Review</button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if service.review %}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4 class="mb-0">Review</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-warning mb-2">
+                            {% with ''|center:service.review.rating as range %}
+                                {% for _ in range %}
+                                    <i class="fas fa-star"></i>
+                                {% endfor %}
+                            {% endwith %}
+                        </div>
+                        <p class="mb-0">{{ service.review.comment }}</p>
+                        <small class="text-muted">Posted {{ service.review.created_at|timesince }} ago</small>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <!-- Action Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Actions</h4>
+                </div>
+                <div class="card-body">
+                    {% if service.service_provider %}
+                        {% if user == service.client or user == service.service_provider %}
+                            <a href="{% url 'chat:conversation' service.id %}" class="btn btn-primary mb-3 w-100">
+                                <i class="fas fa-comments"></i> 
+                                Message {% if user == service.client %}Service Provider{% else %}Client{% endif %}
+                            </a>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if user.is_staff %}
+                        {% if service.status == 'pending' %}
+                            <form method="post" action="{% url 'services:approve_service' service.id %}" class="mb-2">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-success w-100">Approve Request</button>
+                            </form>
+                            <form method="post" action="{% url 'services:reject_service' service.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger w-100">Reject Request</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+
+                    {% if user.user_type == 'service_provider' and service.status == 'approved' and not service.service_provider %}
+                        <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#offerModal">
+                            Make an Offer
+                        </button>
+                    {% endif %}
+
+                    {% if service.service_provider == user and service.status == 'assigned' %}
+                        <form method="post" action="{% url 'services:start_service' service.id %}" class="mb-2">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary w-100">Start Service</button>
+                        </form>
+                    {% endif %}
+
+                    {% if service.service_provider == user and service.status == 'in_progress' %}
+                        <form method="post" action="{% url 'services:complete_service' service.id %}" class="mb-2">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success w-100">Mark as Completed</button>
+                        </form>
+                    {% endif %}
+
+                    {% if user == service.client and service.status == 'pending' %}
+                        <form method="post" action="{% url 'services:cancel_service' service.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning w-100">Cancel Request</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Status Timeline -->
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Status Timeline</h4>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker {% if service.status != 'pending' %}done{% endif %}"></div>
+                            <div class="timeline-content">
+                                <h3 class="timeline-title">Request Submitted</h3>
+                                <p>{{ service.created_at|date:"F j, Y" }}</p>
+                            </div>
+                        </div>
+
+                        {% if service.status != 'pending' %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker {% if service.status != 'approved' %}done{% endif %}"></div>
+                                <div class="timeline-content">
+                                    <h3 class="timeline-title">Request Approved</h3>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if service.status == 'assigned' or service.status == 'in_progress' or service.status == 'completed' %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker {% if service.status != 'assigned' %}done{% endif %}"></div>
+                                <div class="timeline-content">
+                                    <h3 class="timeline-title">Provider Assigned</h3>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if service.status == 'in_progress' or service.status == 'completed' %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker {% if service.status == 'completed' %}done{% endif %}"></div>
+                                <div class="timeline-content">
+                                    <h3 class="timeline-title">Service In Progress</h3>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if service.status == 'completed' %}
+                            <div class="timeline-item">
+                                <div class="timeline-marker done"></div>
+                                <div class="timeline-content">
+                                    <h3 class="timeline-title">Service Completed</h3>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Offer Modal -->
+{% if user.user_type == 'service_provider' %}
+    <div class="modal fade" id="offerModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Make an Offer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post" action="{% url 'services:make_offer' service.id %}">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="price_quote" class="form-label">Price Quote (₹)</label>
+                            <input type="number" class="form-control" id="price_quote" name="price_quote" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                            <input type="number" class="form-control" id="estimated_hours" name="estimated_hours" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="message" class="form-label">Message</label>
+                            <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Submit Offer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<style>
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e9ecef;
+    border: 3px solid #dee2e6;
+}
+
+.timeline-marker.done {
+    background: #28a745;
+    border-color: #218838;
+}
+
+.timeline-content {
+    padding-bottom: 20px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.timeline-title {
+    font-size: 1rem;
+    margin-bottom: 5px;
+}
+
+.rating {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+}
+
+.rating input {
+    display: none;
+}
+
+.rating label {
+    cursor: pointer;
+    color: #ddd;
+    font-size: 1.5rem;
+    padding: 0 0.1rem;
+}
+
+.rating input:checked ~ label,
+.rating label:hover,
+.rating label:hover ~ label {
+    color: #ffc107;
+}
+</style>
+{% endblock %}

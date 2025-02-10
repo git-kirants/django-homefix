@@ -1,0 +1,213 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Profile - HomeFix{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <h2 class="text-center mb-4">Profile</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <!-- Basic Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" value="{{ user.username }}" readonly>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="last_name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="phone_number" class="form-label">Phone Number</label>
+                    <input type="tel" 
+                           class="form-control" 
+                           id="phone_number" 
+                           name="phone_number" 
+                           pattern="^[789]\d{9}$"
+                           maxlength="10"
+                           value="{{ user.phone_number }}"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, ''); validatePhoneNumber(this);"
+                           required>
+                    <div class="invalid-feedback" id="phone-feedback">
+                        Phone number must start with 7, 8, or 9 and be exactly 10 digits long.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Picture -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Profile Picture</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    {% if profile.profile_picture %}
+                        <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="img-thumbnail mb-3" style="max-width: 200px;">
+                    {% endif %}
+                    <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*">
+                </div>
+            </div>
+        </div>
+
+        <!-- User Type Specific Fields -->
+        {% if user.user_type == 'homeowner' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Property Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="property_type" class="form-label">Property Type</label>
+                        <input type="text" class="form-control" id="property_type" name="property_type" value="{{ profile.property_type }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="property_size" class="form-label">Property Size</label>
+                        <input type="text" class="form-control" id="property_size" name="property_size" value="{{ profile.property_size }}">
+                    </div>
+                </div>
+            </div>
+        {% elif user.user_type == 'tenant' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Lease Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="lease_start_date" class="form-label">Lease Start Date</label>
+                        <input type="date" class="form-control" id="lease_start_date" name="lease_start_date" value="{{ profile.lease_start_date|date:'Y-m-d' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="lease_end_date" class="form-label">Lease End Date</label>
+                        <input type="date" class="form-control" id="lease_end_date" name="lease_end_date" value="{{ profile.lease_end_date|date:'Y-m-d' }}">
+                    </div>
+                </div>
+            </div>
+        {% elif user.user_type == 'service_provider' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Service Provider Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="company_name" class="form-label">Company Name</label>
+                        <input type="text" class="form-control" id="company_name" name="company_name" value="{{ profile.company_name }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="skills" class="form-label">Skills</label>
+                        <select class="form-select" id="skills" name="skills" multiple>
+                            {% for skill in all_skills %}
+                                <option value="{{ skill.id }}" {% if skill in profile.skills.all %}selected{% endif %}>{{ skill.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="certifications" class="form-label">Certifications</label>
+                        <div class="card">
+                            <div class="card-body">
+                                <!-- Existing Certifications -->
+                                {% if profile.certifications.all %}
+                                    <div class="mb-3">
+                                        <h6>Current Certifications</h6>
+                                        <div class="list-group">
+                                            {% for cert in profile.certifications.all %}
+                                                <div class="list-group-item">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <h6 class="mb-1">{{ cert.name }}</h6>
+                                                            {% if cert.issuing_authority %}
+                                                                <small class="text-muted">{{ cert.issuing_authority }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div>
+                                                            {% if cert.certificate_file %}
+                                                                <a href="{{ cert.certificate_file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                                    <i class="fas fa-file"></i> View
+                                                                </a>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Add New Certification -->
+                                <div class="mb-3">
+                                    <h6>Add New Certification</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="cert_name" class="form-label">Certificate Name</label>
+                                            <input type="text" class="form-control" id="cert_name" name="cert_name">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="cert_authority" class="form-label">Issuing Authority</label>
+                                            <input type="text" class="form-control" id="cert_authority" name="cert_authority">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="cert_issue_date" class="form-label">Issue Date</label>
+                                            <input type="date" class="form-control" id="cert_issue_date" name="cert_issue_date">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="cert_expiry_date" class="form-label">Expiry Date (Optional)</label>
+                                            <input type="date" class="form-control" id="cert_expiry_date" name="cert_expiry_date">
+                                        </div>
+                                        <div class="col-12">
+                                            <label for="cert_file" class="form-label">Certificate File</label>
+                                            <input type="file" class="form-control" id="cert_file" name="cert_file" accept=".pdf,.jpg,.jpeg,.png">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary w-100">Update Profile</button>
+    </form>
+</div>
+
+<script>
+function validatePhoneNumber(input) {
+    const phoneNumber = input.value;
+    const isValid = /^[789]\d{0,9}$/.test(phoneNumber);
+    
+    if (!isValid) {
+        // If the input doesn't match our pattern, remove the last character
+        input.value = phoneNumber.slice(0, -1);
+    }
+    
+    // Show validation feedback
+    const feedback = document.getElementById('phone-feedback');
+    if (phoneNumber.length === 10 && /^[789]\d{9}$/.test(phoneNumber)) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        feedback.style.display = 'none';
+    } else {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+        feedback.style.display = 'block';
+    }
+}
+</script>
+{% endblock %}

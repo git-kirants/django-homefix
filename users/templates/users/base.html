@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}HomeFix{% endblock %}</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    {% block extra_css %}{% endblock %}
+    <!-- Custom CSS -->
+    <style>
+        [x-cloak] { display: none !important; }
+        .navbar-brand {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        @media (min-width: 992px) {
+            .navbar-collapse {
+                display: flex !important;
+            }
+        }
+        @media (max-width: 991.98px) {
+            .navbar-collapse {
+                display: none;
+            }
+            .navbar-collapse.show {
+                display: block;
+            }
+        }
+        .profile-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .auth-container {
+            max-width: 500px;
+            margin: 4rem auto;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .nav-link.active {
+            font-weight: 600;
+            color: #2c3e50 !important;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm" x-data="navbar()">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'users:home' %}">
+                <i class="fas fa-tools me-2"></i>HomeFix
+            </a>
+            <button class="navbar-toggler" type="button" @click="isOpen = !isOpen">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="navbar-collapse" 
+                 :class="{ 'show': isOpen }" 
+                 x-transition:enter="transition ease-out duration-200"
+                 x-transition:enter-start="opacity-0 scale-90"
+                 x-transition:enter-end="opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 scale-100"
+                 x-transition:leave-end="opacity-0 scale-90">
+                <ul class="navbar-nav me-auto">
+                    {% if user.is_authenticated %}
+                        {% if user.user_type in 'homeowner,tenant' %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'services:request_service' %}">
+                                    <i class="fas fa-plus-circle me-1"></i>Request Service
+                                </a>
+                            </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'services:service_list' %}">
+                                <i class="fas fa-list me-1"></i>Service Requests
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        {% if user.is_staff %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/" target="_blank">
+                                    <i class="fas fa-cog me-1"></i>Admin Panel
+                                </a>
+                            </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{% url 'chat:message_list' %}">
+                                <i class="fas fa-envelope"></i>
+                                <span x-show="unreadCount > 0" 
+                                      x-text="unreadCount"
+                                      x-cloak
+                                      class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                </span>
+                            </a>
+                        </li>
+                        <li class="nav-item dropdown" x-data="{ open: false }" @click.away="open = false">
+                            <a class="nav-link dropdown-toggle" 
+                               @click="open = !open" 
+                               href="javascript:void(0)">
+                                <i class="fas fa-user-circle me-1"></i>{{ user.get_full_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" 
+                                :class="{'show': open}"
+                                x-cloak>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'users:profile' %}">
+                                        <i class="fas fa-id-card me-2"></i>Profile
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" action="{% url 'users:logout' %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item text-danger">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'users:login' %}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Login
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'users:register' %}">
+                                <i class="fas fa-user-plus me-1"></i>Register
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        {% if messages %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+    <script>
+        function navbar() {
+            return {
+                isOpen: window.innerWidth >= 992,
+                unreadCount: 0,
+                init() {
+                    this.updateUnreadCount();
+                    setInterval(() => this.updateUnreadCount(), 30000);
+                    
+                    // Update isOpen based on window resize
+                    window.addEventListener('resize', () => {
+                        this.isOpen = window.innerWidth >= 992;
+                    });
+                },
+                async updateUnreadCount() {
+                    try {
+                        const response = await fetch('{% url "chat:unread_count" %}');
+                        const data = await response.json();
+                        this.unreadCount = data.unread_count;
+                    } catch (error) {
+                        console.error('Error fetching unread count:', error);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

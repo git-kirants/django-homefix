@@ -1,0 +1,239 @@
+{% extends 'users/base.html' %}
+{% block title %}Service Requests - HomeFix{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>Service Requests</h2>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if user.user_type in 'homeowner,tenant' %}
+                <a href="{% url 'services:request_service' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> New Service Request
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if user.user_type == 'service_provider' %}
+        <!-- View Toggle for Service Providers -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="btn-group w-100" role="group">
+                    <a href="?view=all_services{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" 
+                       class="btn btn-outline-primary {% if request.GET.view != 'my_services' %}active{% endif %}">
+                        <i class="fas fa-globe"></i> All Services
+                    </a>
+                    <a href="?view=my_services{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" 
+                       class="btn btn-outline-primary {% if request.GET.view == 'my_services' %}active{% endif %}">
+                        <i class="fas fa-user-check"></i> My Services
+                    </a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                {% if user.user_type == 'service_provider' %}
+                    <input type="hidden" name="view" value="{{ request.GET.view|default:'all_services' }}">
+                {% endif %}
+                <div class="col-md-3">
+                    <label for="category" class="form-label">Category</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">All Categories</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Statuses</option>
+                        {% for status_value, status_label in status_choices %}
+                            <option value="{{ status_value }}" {% if request.GET.status == status_value %}selected{% endif %}>
+                                {{ status_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="priority" class="form-label">Priority</label>
+                    <select class="form-select" id="priority" name="priority">
+                        <option value="">All Priorities</option>
+                        {% for priority_value, priority_label in priority_choices %}
+                            <option value="{{ priority_value }}" {% if request.GET.priority == priority_value %}selected{% endif %}>
+                                {{ priority_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Service Requests List -->
+    <div class="row">
+        {% for request in service_requests %}
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 {% if user.user_type == 'service_provider' and request.matches_skills %}border-success{% endif %}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ request.title }}</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if user.user_type == 'service_provider' %}
+                                {% if request.matches_skills %}
+                                    <span class="badge bg-success" title="Matches your skills">
+                                        <i class="fas fa-check-circle"></i> Skill Match
+                                    </span>
+                                {% endif %}
+                                {% if request.has_made_offer %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-paper-plane"></i> Offer Sent
+                                    </span>
+                                {% endif %}
+                                {% if request.service_provider == user %}
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-user-check"></i> Assigned
+                                    </span>
+                                {% endif %}
+                            {% endif %}
+                            <span class="badge bg-{{ request.get_status_color }}">{{ request.get_status_display }}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <strong>Category:</strong> {{ request.category.name }}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Priority:</strong> 
+                            <span class="badge bg-{{ request.get_priority_color }}">
+                                {{ request.get_priority_display }}
+                            </span>
+                        </div>
+                        <div class="mb-2">
+                            <strong>Location:</strong> {{ request.location }}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Preferred Time:</strong> {{ request.preferred_time|date:"F j, Y, g:i a" }}
+                        </div>
+                        <p class="mb-0">{{ request.description|truncatewords:30 }}</p>
+                    </div>
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Posted {{ request.created_at|timesince }} ago</small>
+                            <div class="btn-group">
+                                <a href="{% url 'services:service_detail' request.id %}" class="btn btn-sm btn-outline-primary">
+                                    View Details
+                                </a>
+                                {% if user.user_type == 'service_provider' and request.status == 'approved' and not request.has_made_offer %}
+                                    <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#offerModal" data-service-id="{{ request.id }}">
+                                        Make Offer
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    No service requests found matching your criteria.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if service_requests.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if service_requests.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ service_requests.previous_page_number }}{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" aria-label="Previous">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                {% endif %}
+
+                {% for num in service_requests.paginator.page_range %}
+                    {% if service_requests.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if service_requests.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ service_requests.next_page_number }}{% if request.GET.view %}&view={{ request.GET.view }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.priority %}&priority={{ request.GET.priority }}{% endif %}" aria-label="Next">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+
+{% if user.user_type == 'service_provider' %}
+<!-- Offer Modal -->
+<div class="modal fade" id="offerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Make an Offer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="offerForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="price_quote" class="form-label">Price Quote (₹)</label>
+                        <input type="number" class="form-control" id="price_quote" name="price_quote" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                        <input type="number" class="form-control" id="estimated_hours" name="estimated_hours" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Submit Offer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const offerModal = document.getElementById('offerModal');
+    const offerForm = document.getElementById('offerForm');
+    
+    offerModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const serviceId = button.getAttribute('data-service-id');
+        offerForm.action = `/services/offer/${serviceId}/`;
+    });
+});
+</script>
+{% endif %}
+{% endblock %}
